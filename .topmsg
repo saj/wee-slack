@@ -1,5 +1,8 @@
 From: Saj Goonatilleke <saj@anchor.net.au>
 Subject: [PATCH] t/saj/typing-drop-outbound
 
-<patch description>
+Do not send typing activity notifications to Slack.
 
+I think while I type.  I think and type at a glacial pace.  It is not
+unusual for me to discard a message I had begun to type.  These signals
+are only likely to confuse people.
