@@ -1937,20 +1937,6 @@ def buffer_switch_cb(signal, sig_type, data):
     previous_buffer = data
     return w.WEECHAT_RC_OK
 
-
-def typing_notification_cb(signal, sig_type, data):
-    if len(w.buffer_get_string(data, "input")) > 8:
-        global typing_timer
-        now = time.time()
-        if typing_timer + 4 < now:
-            channel = channels.find(current_buffer_name())
-            if channel:
-                identifier = channel.identifier
-                request = {"type": "typing", "channel": identifier}
-                channel.server.send_to_websocket(request, expect_reply=False)
-                typing_timer = now
-    return w.WEECHAT_RC_OK
-
 def slack_ping_cb(data, remaining):
     """
     Periodic websocket ping to detect broken connection.
@@ -2319,7 +2305,6 @@ if __name__ == "__main__":
             w.hook_signal('buffer_closing', "buffer_closing_cb", "")
             w.hook_signal('buffer_switch', "buffer_switch_cb", "")
             w.hook_signal('window_switch', "buffer_switch_cb", "")
-            w.hook_signal('input_text_changed', "typing_notification_cb", "")
             w.hook_signal('quit', "quit_notification_cb", "")
             w.hook_signal('window_scrolled', "scrolled_cb", "")
             w.hook_command(
