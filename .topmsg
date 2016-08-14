@@ -1,5 +1,6 @@
 From: Saj Goonatilleke <saj@anchor.net.au>
 Subject: [PATCH] t/saj/no-reactions
 
-<patch description>
+Remove reactions.
 
+Reactions add no useful value.
