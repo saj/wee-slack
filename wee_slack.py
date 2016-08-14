@@ -343,12 +343,7 @@ def buffer_input_cb(b, buffer, data):
     channel = channels.find(buffer)
     if not channel:
         return w.WEECHAT_RC_OK_EAT
-    if not data.startswith('s/'):
-        channel.send_message(data)
-        #channel.buffer_prnt(channel.server.nick, data)
-    if data.count('/') == 3:
-        old, new = data.split('/')[1:3]
-        channel.change_previous_message(old.decode("utf-8"), new.decode("utf-8"))
+    channel.send_message(data)
     channel.mark_read(True)
     return w.WEECHAT_RC_ERROR
 
