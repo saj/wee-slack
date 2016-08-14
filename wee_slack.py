@@ -343,16 +343,10 @@ def buffer_input_cb(b, buffer, data):
     channel = channels.find(buffer)
     if not channel:
         return w.WEECHAT_RC_OK_EAT
-    reaction = re.match("(\d*)(\+|-):(.*):", data)
-    if not reaction and not data.startswith('s/'):
+    if not data.startswith('s/'):
         channel.send_message(data)
         #channel.buffer_prnt(channel.server.nick, data)
-    elif reaction:
-        if reaction.group(2) == "+":
-            channel.send_add_reaction(int(reaction.group(1) or 1), reaction.group(3))
-        elif reaction.group(2) == "-":
-            channel.send_remove_reaction(int(reaction.group(1) or 1), reaction.group(3))
-    elif data.count('/') == 3:
+    if data.count('/') == 3:
         old, new = data.split('/')[1:3]
         channel.change_previous_message(old.decode("utf-8"), new.decode("utf-8"))
     channel.mark_read(True)
@@ -720,32 +714,6 @@ class Channel(object):
                 self.buffer_redraw()
             return True
 
-    def add_reaction(self, ts, reaction, user):
-        if self.has_message(ts):
-            message_index = self.messages.index(ts)
-            self.messages[message_index].add_reaction(reaction, user)
-            self.change_message(ts)
-            return True
-
-    def remove_reaction(self, ts, reaction, user):
-        if self.has_message(ts):
-            message_index = self.messages.index(ts)
-            self.messages[message_index].remove_reaction(reaction, user)
-            self.change_message(ts)
-            return True
-
-    def send_add_reaction(self, msg_number, reaction):
-        self.send_change_reaction("reactions.add", msg_number, reaction)
-
-    def send_remove_reaction(self, msg_number, reaction):
-        self.send_change_reaction("reactions.remove", msg_number, reaction)
-
-    def send_change_reaction(self, method, msg_number, reaction):
-        if 0 < msg_number < len(self.messages):
-            timestamp = self.messages[-msg_number].message_json["ts"]
-            data = {"channel": self.identifier, "timestamp": timestamp, "name": reaction}
-            async_slack_api_request(self.server.domain, self.server.token, method, data)
-
     def change_previous_message(self, old, new):
         message = self.my_last_message()
         if new == "" and old == "":
@@ -947,27 +915,6 @@ class Message(object):
         if not isinstance(new_text, unicode):
             new_text = unicode(new_text, 'utf-8')
         self.message_json["text"] = new_text
-
-    def add_reaction(self, reaction, user):
-        if "reactions" in self.message_json:
-            found = False
-            for r in self.message_json["reactions"]:
-                if r["name"] == reaction and user not in r["users"]:
-                    r["users"].append(user)
-                    found = True
-
-            if not found:
-                self.message_json["reactions"].append({u"name": reaction, u"users": [user]})
-        else:
-            self.message_json["reactions"] = [{u"name": reaction, u"users": [user]}]
-
-    def remove_reaction(self, reaction, user):
-        if "reactions" in self.message_json:
-            for r in self.message_json["reactions"]:
-                if r["name"] == reaction and user in r["users"]:
-                    r["users"].remove(user)
-        else:
-            pass
 
     def __eq__(self, other):
         return self.ts_time == other or self.ts == other
@@ -1585,38 +1532,10 @@ def process_error(message_json):
     pass
 
 def process_reaction_added(message_json):
-    if message_json["item"].get("type") == "message":
-        channel = channels.find(message_json["item"]["channel"])
-        channel.add_reaction(message_json["item"]["ts"], message_json["reaction"], message_json["user"])
-    else:
-        dbg("Reaction to item type not supported: " + str(message_json))
+    pass
 
 def process_reaction_removed(message_json):
-    if message_json["item"].get("type") == "message":
-        channel = channels.find(message_json["item"]["channel"])
-        channel.remove_reaction(message_json["item"]["ts"], message_json["reaction"], message_json["user"])
-    else:
-        dbg("Reaction to item type not supported: " + str(message_json))
-
-def create_reaction_string(reactions):
-    count = 0
-    if not isinstance(reactions, list):
-        reaction_string = " [{}]".format(reactions)
-    else:
-        reaction_string = ' ['
-        for r in reactions:
-            if len(r["users"]) > 0:
-                count += 1
-                if show_reaction_nicks:
-                    nicks = [resolve_ref("@{}".format(user)) for user in r["users"]]
-                    users = "({})".format(",".join(nicks))
-                else:
-                    users = len(r["users"])
-                reaction_string += ":{}:{} ".format(r["name"], users)
-        reaction_string = reaction_string[:-1] + ']'
-    if count == 0:
-        reaction_string = ''
-    return reaction_string
+    pass
 
 def modify_buffer_line(buffer, new_line, time):
     time = int(float(time))
@@ -1673,8 +1592,6 @@ def render_message(message_json, force=False):
         text = text.replace("\t", "    ")
         text = text.encode('utf-8')
 
-        if "reactions" in message_json:
-            text += create_reaction_string(message_json["reactions"])
         message_json["_rendered_text"] = text
         return text
 
@@ -2172,7 +2089,7 @@ def create_slack_debug_buffer():
 
 def config_changed_cb(data, option, value):
     global slack_api_token, distracting_channels, colorize_nicks, colorize_private_chats, slack_debug, debug_mode, \
-        unfurl_ignore_alt_text, colorize_messages, show_reaction_nicks
+        unfurl_ignore_alt_text, colorize_messages
 
     slack_api_token = w.config_get_plugin("slack_api_token")
 
@@ -2186,7 +2103,6 @@ def config_changed_cb(data, option, value):
     if debug_mode != '' and debug_mode != 'false':
         create_slack_debug_buffer()
     colorize_private_chats = w.config_string_to_boolean(w.config_get_plugin("colorize_private_chats"))
-    show_reaction_nicks = w.config_string_to_boolean(w.config_get_plugin("show_reaction_nicks"))
 
     unfurl_ignore_alt_text = False
     if w.config_get_plugin('unfurl_ignore_alt_text') != "0":
@@ -2257,8 +2173,6 @@ if __name__ == "__main__":
                 w.config_set_plugin('unfurl_ignore_alt_text', "0")
             if not w.config_get_plugin('switch_buffer_on_join'):
                 w.config_set_plugin('switch_buffer_on_join', "1")
-            if not w.config_get_plugin('show_reaction_nicks'):
-                w.config_set_plugin('show_reaction_nicks', "0")
 
             if w.config_get_plugin('channels_not_on_current_server_color'):
                 w.config_option_unset('channels_not_on_current_server_color')
