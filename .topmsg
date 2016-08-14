@@ -1,5 +1,7 @@
 From: Saj Goonatilleke <saj@anchor.net.au>
 Subject: [PATCH] t/saj/no-editing
 
-<patch description>
+Remove (outbound) message editing
 
+Message edits are not shown to team members connected to the Slack IRC
+and XMPP gateways.  Send a literal s/old/new/ instead.
